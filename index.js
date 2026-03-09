@@ -15,12 +15,21 @@ const ownerNumber = ["255763071896@s.whatsapp.net"]; // CHANGE THIS TO YOUR NUMB
 async function startMungaJrMD() {
     const { state, saveCreds } = await useMultiFileAuthState('MungaSession');
     const sock = makeWASocket({
-        version: (await fetchLatestBaileysVersion()).version,
-        auth: state,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
-        browser: ['Munga Jr MD', 'Chrome', '3.0.0']
-    });
+    version: (await fetchLatestBaileysVersion()).version,
+    auth: state,
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['Chrome (Linux)', 'Chrome', '1.0.0']
+});
+
+if (!sock.authState.creds.registered) {
+    const phoneNumber = "255763071896"; 
+    setTimeout(async () => {
+        let code = await sock.requestPairingCode(phoneNumber);
+        console.log(`\n\nKODI YAKO NI: ${code}\n\n`);
+    }, 3000);
+}
+
 
     sock.ev.on('creds.update', saveCreds);
 
