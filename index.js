@@ -1,45 +1,36 @@
 const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
 const pino = require("pino");
-const express = require("express");
-const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-    res.send(`
-    <html><body style="background:#000;color:#0f0;text-align:center;font-family:monospace">
-    <h1>MUNGA JR MD</h1>
-    <input type="number" id="n" placeholder="255..."><br><br>
-    <button onclick="g()">PATA KODI</button>
-    <h2 id="c"></h2>
-    <script>
-    async function g(){
-        const n=document.getElementById('n').value;
-        const r=await fetch('/pair?number='+n);
-        const d=await r.json();
-        document.getElementById('c').innerText = d.code || "JARIBU TENA";
-    }
-    </script></body></html>`);
-});
-
-async function start() {
+async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('MungaSession');
     const sock = makeWASocket({
         auth: state,
-        logger: pino({ level: "fatal" }),
+        logger: pino({ level: "silent" }),
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
-    app.get('/pair', async (req, res) => {
-        let num = req.query.number;
-        try {
-            let code = await sock.requestPairingCode(num);
-            res.json({ code: code });
-        } catch { res.json({ error: "fail" }); }
-    });
+    // WEKA NAMBA YAKO HAPA (Mfano: 255763000000)
+    let phoneNumber = "255763071896"; 
+
+    if (!state.creds.registered) {
+        setTimeout(async () => {
+            try {
+                let code = await sock.requestPairingCode(phoneNumber);
+                console.log("\n====================================");
+                console.log("KODI YAKO NI: " + code);
+                console.log("====================================\n");
+            } catch (error) {
+                console.log("Imeshindwa kutoa kodi, jaribu tena kuredeploy.");
+            }
+        }, 5000);
+    }
 
     sock.ev.on('creds.update', saveCreds);
-    sock.ev.on('connection.update', (u) => { if (u.connection === 'close') start(); });
+    sock.ev.on('connection.update', (update) => {
+        const { connection } = update;
+        if (connection === 'close') startBot();
+        if (connection === 'open') console.log("Bot ya Munga Jr Imeunganishwa!");
+    });
 }
 
-start();
-app.listen(PORT);
+startBot();
