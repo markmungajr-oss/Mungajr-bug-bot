@@ -3,13 +3,19 @@
   "version": "1.1.0",
   "description": "The Ultimate Bug Bot by Munga Jr",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.5.0",
     "@hapi/boom": "^10.0.1",
     "pino": "^8.16.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "node-fetch": "^2.6.7"
   },
-  "scripts": {
-    "start": "node index.js"
+  "engines": {
+    "node": ">=16.x"
   }
 }
