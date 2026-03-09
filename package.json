@@ -1,0 +1,15 @@
+{
+  "name": "munga-jr-bot",
+  "version": "1.1.0",
+  "description": "The Ultimate Bug Bot by Munga Jr",
+  "main": "index.js",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.5.0",
+    "@hapi/boom": "^10.0.1",
+    "pino": "^8.16.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
